@@ -18,6 +18,8 @@ jobs:
   rust:
     name: rustfmt, clippy and tests
     runs-on: ubuntu-latest
+    # Skip pull requests from forks: nothing from outside the repo runs here.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
@@ -38,6 +40,8 @@ jobs:
   build:
     name: build tc for three ISAs, the guests and CPython
     runs-on: ubuntu-latest
+    # Skip pull requests from forks: nothing from outside the repo runs here.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
@@ -53,6 +57,8 @@ jobs:
   python:
     name: ruff and pyright
     runs-on: ubuntu-latest
+    # Skip pull requests from forks: nothing from outside the repo runs here.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -61,6 +67,8 @@ jobs:
   shell:
     name: shellcheck
     runs-on: ubuntu-latest
+    # Skip pull requests from forks: nothing from outside the repo runs here.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v4
       - run: make lint-sh
@@ -68,6 +76,8 @@ jobs:
   markdown:
     name: markdownlint and Mermaid
     runs-on: ubuntu-latest
+    # Skip pull requests from forks: nothing from outside the repo runs here.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
