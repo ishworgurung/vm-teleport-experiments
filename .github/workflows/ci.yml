@@ -25,8 +25,11 @@ jobs:
           components: rustfmt, clippy
           targets: wasm32-wasip1
       - uses: Swatinem/rust-cache@v2
-      - name: Fetch binaryen (the guests need wasm-opt)
-        run: tools/fetch-tools.sh binaryen
+      # `make guests` fetches the pinned tools itself, and builds the native CRIU
+      # guest with zig (the cross C compiler, see tools/zcc-*).
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
       - run: make lint-rust
       - name: Build the guests and run the host's tests
         run: make guests test
