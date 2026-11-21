@@ -1,0 +1,13 @@
+
+[1/2] h1: x86_64, CPU model Icelake-Server, runs on the real CPU (KVM)
+  do    start the program and run it until it asks to be paused, then save its state as a capsule
+  got   saved capsule 3b591475: program memory 1088KiB, progress counter 1000
+  next  copy the capsule from h1 to h4 (1.1M)
+  raw   tc: checkpoint host=h1 arch=x86_64 cpu="Intel Xeon Processor (Icelake)" counter=1000 capsule=sha256:3b59147587c9 module=sha256:7e1089aecc74 memory=1088KiB
+
+[2/2] h4: x86_64, CPU model Denverton, runs on the real CPU (KVM)
+  do    load the capsule that h1 saved, check its hashes, and continue the program from where it stopped
+  got   capsule 3b591475 loaded and verified (written on h1, x86_64); progress counter 1000 at that point
+  got   ran to the end, progress counter 2000
+  raw   tc: restored on h4 (x86_64, "Intel Atom Processor (Denverton)") from capsule=sha256:3b59147587c9 written on h1 (x86_64) counter=1000 module=sha256:7e1089aecc74 verified
+  raw   tc: ran to counter=2000, done

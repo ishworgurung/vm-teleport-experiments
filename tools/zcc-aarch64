@@ -1,0 +1,5 @@
+#!/bin/sh
+# zig cc as a cross C compiler and linker for aarch64-linux-musl. The cc crate adds
+# its own --target=<rust triple>, which zig cannot parse, so drop it.
+for x; do shift; case $x in --target=*) ;; *) set -- "$@" "$x" ;; esac; done
+exec zig cc -target aarch64-linux-musl "$@"

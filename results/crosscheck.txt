@@ -1,0 +1,28 @@
+EXPERIMENT  Check the capsules and the demo output with tools other than tc
+QUESTION    Do independent tools agree with what tc recorded?
+HOW         Python recomputes every capsule's hashes. The official wasmtime command-line tool runs the same programs once, with no pausing.
+
+[1/2] every capsule: its hashes, recomputed with Python
+  do    for each capsule, recompute the sha256 of its three data files and compare it with the manifest
+  do    for the step counter, read the counter straight out of memory.bin and compare it with the manifest
+  got   the step counter lives at linear-memory address 1048584 (found by disassembling the module with wasm-dis)
+  ok    vms/shared/h1/capsules/wasm-async/cap-0: written on h1 (x86_64), module async-counter.wasm; all three hashes match
+  ok    vms/shared/h1/capsules/wasm-py/cap-0: written on h1 (x86_64), module python.wasm; all three hashes match
+  ok    vms/shared/h1/capsules/wasm-step/cap-0: written on h1 (x86_64), module step-counter.wasm; all three hashes match; the counter read from memory.bin is 1000
+  ok    vms/shared/h2/capsules/wasm-async/cap-1: written on h2 (aarch64), module async-counter.wasm; all three hashes match
+  ok    vms/shared/h2/capsules/wasm-py/cap-1: written on h2 (aarch64), module python.wasm; all three hashes match
+  ok    vms/shared/h2/capsules/wasm-step/cap-1: written on h2 (aarch64), module step-counter.wasm; all three hashes match; the counter read from memory.bin is 2000
+  ok    vms/shared/h3/capsules/wasm-async/cap-2: written on h3 (riscv64), module async-counter.wasm; all three hashes match
+  ok    vms/shared/h3/capsules/wasm-py/cap-2: written on h3 (riscv64), module python.wasm; all three hashes match
+  ok    vms/shared/h3/capsules/wasm-step/cap-2: written on h3 (riscv64), module step-counter.wasm; all three hashes match; the counter read from memory.bin is 3000
+
+[2/2] the teleported output against one run without any pausing
+  do    run each program once under the official wasmtime command-line tool, with checkpoint() switched off
+  do    compare its lines with the lines the program printed across the four hosts, one by one
+  got   demo-async.txt: 17 lines across the hosts, 17 lines from the single run
+  ok    demo-async.txt: the two are identical, line for line
+  got   demo-py.txt: 41 lines across the hosts, 41 lines from the single run
+  ok    demo-py.txt: the two are identical, line for line
+
+RESULT  PASS
+        every hash matched, the counter read from memory agreed, and the teleported output equals the single run

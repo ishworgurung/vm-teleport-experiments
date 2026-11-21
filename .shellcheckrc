@@ -1,0 +1,9 @@
+# Follow `source` into the sourced file, so shellcheck sees what it defines.
+external-sources=true
+shell=bash
+# Optional checks that are worth having.
+enable=quote-safe-variables
+enable=require-double-brackets
+enable=add-default-case
+enable=avoid-nullary-conditions
+enable=check-unassigned-uppercase

@@ -1,0 +1,34 @@
+EXPERIMENT  Show the four hosts
+QUESTION    Which architecture, CPU model and kernel does each VM have?
+HOW         The CPU line is what the guest kernel reads from /proc/cpuinfo. x86-64 reports a model name. Arm reports an implementer and a part number. RISC-V reports an ISA string.
+
+[1/4] h1: x86_64, CPU model Icelake-Server, runs on the real CPU (KVM)
+  do    ask h1 for its architecture, CPU and kernel
+  raw   x86_64
+  raw   model name : Intel Xeon Processor (Icelake)
+  raw   model name : Intel Xeon Processor (Icelake)
+  raw   6.12.117+deb13-amd64
+
+[2/4] h2: aarch64, CPU model neoverse-n1, emulated in software (QEMU TCG)
+  do    ask h2 for its architecture, CPU and kernel
+  raw   aarch64
+  raw   CPU implementer : 0x41
+  raw   CPU part : 0xd0c
+  raw   CPU implementer : 0x41
+  raw   6.12.117+deb13-arm64
+
+[3/4] h3: riscv64, CPU model rv64, emulated in software (QEMU TCG)
+  do    ask h3 for its architecture, CPU and kernel
+  raw   riscv64
+  raw   isa : rv64imafdch_zicbom_zicboz_zicntr_zicsr_zifencei_zihintntl_zihintpause_zihpm_zawrs_zfa_zca_zcd_zba_zbb_zbc_zbs_sstc_svvptc
+  raw   isa : rv64imafdch_zicbom_zicboz_zicntr_zicsr_zifencei_zihintntl_zihintpause_zihpm_zawrs_zfa_zca_zcd_zba_zbb_zbc_zbs_sstc_svvptc
+  raw   6.12.117+deb13-riscv64
+
+[4/4] h4: x86_64, CPU model EPYC-Genoa, runs on the real CPU (KVM)
+  do    ask h4 for its architecture, CPU and kernel
+  raw   x86_64
+  raw   model name : AMD EPYC-Genoa Processor
+  raw   model name : AMD EPYC-Genoa Processor
+  raw   6.12.117+deb13-amd64
+
+RESULT  DONE (4 hosts shown)

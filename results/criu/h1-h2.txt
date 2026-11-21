@@ -1,0 +1,17 @@
+
+[2/11] h1 to h2 (x86-64 to Arm), no options
+  do    on h1 (x86_64, CPU model Icelake-Server, runs on the real CPU (KVM)), start the counter
+  got   the counter runs as process 2023. Its last line:
+  prog  criu-counter n=10 pid=2023
+  do    dump it: criu dump (no options)
+  got   the dump worked, and CRIU stopped the process
+  next  copy the dump image from h1 to h2 (132K)
+  do    on h2 (aarch64, CPU model neoverse-n1, emulated in software (QEMU TCG)), restore it: criu restore (no options), and watch for 2 seconds
+  got   the restore failed. CRIU's error lines, then the counter log that came with the dump image (it shows what was printed on h1 before the dump, not a new run):
+  raw   Error (criu/cr-restore.c:854): Core march mismatch 1
+  raw   Error (criu/cr-restore.c:2320): Restoring FAILED.
+  prog  criu-counter n=9 pid=2023
+  prog  criu-counter n=10 pid=2023
+  prog  criu-counter n=11 pid=2023
+
+  so    The restore failed: Core march mismatch 1. The process was not moved.

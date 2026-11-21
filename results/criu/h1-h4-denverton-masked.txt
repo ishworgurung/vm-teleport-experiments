@@ -1,0 +1,15 @@
+
+[11/11] h1 to h4 (Denverton), source started with glibc told to avoid AVX2 and AVX
+  do    on h1 (x86_64, CPU model Icelake-Server, runs on the real CPU (KVM)), start the counter with GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX2,-AVX (tells glibc not to use the AVX2 and AVX instructions)
+  got   the counter runs as process 2481. Its last line:
+  prog  criu-counter n=10 pid=2481
+  do    dump it: criu dump (no options)
+  got   the dump worked, and CRIU stopped the process
+  next  copy the dump image from h1 to h4 (132K)
+  do    on h4 (x86_64, CPU model Denverton, runs on the real CPU (KVM)), restore it: criu restore (no options), and watch for 2 seconds
+  got   the restore worked, and the process is running. The counter log after the restore (the last 3 lines):
+  prog  criu-counter n=19 pid=2481
+  prog  criu-counter n=20 pid=2481
+  prog  criu-counter n=21 pid=2481
+
+  so    The counter carried on after the move: its log reaches n=21, and it is the same process (process 2481).

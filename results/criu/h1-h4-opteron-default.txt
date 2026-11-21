@@ -1,0 +1,15 @@
+
+[6/11] h1 to h4 (CPU model Opteron_G4: AVX, no AVX2), no options
+  do    on h1 (x86_64, CPU model Icelake-Server, runs on the real CPU (KVM)), start the counter
+  got   the counter runs as process 2233. Its last line:
+  prog  criu-counter n=10 pid=2233
+  do    dump it: criu dump (no options)
+  got   the dump worked, and CRIU stopped the process
+  next  copy the dump image from h1 to h4 (132K)
+  do    on h4 (x86_64, CPU model Opteron_G4, runs on the real CPU (KVM)), restore it: criu restore (no options), and watch for 2 seconds
+  got   the restore worked, and the process is running. The counter log after the restore (the last 3 lines):
+  prog  criu-counter n=20 pid=2233
+  prog  criu-counter n=21 pid=2233
+  prog  criu-counter n=22 pid=2233
+
+  so    The counter carried on after the move: its log reaches n=22, and it is the same process (process 2233).

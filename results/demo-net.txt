@@ -1,0 +1,50 @@
+EXPERIMENT  Move a program that has an open network connection
+QUESTION    What happens to a connection, a transaction and a login session when a WebAssembly program moves to another host?
+HOW         The program talks to a test server on this machine. It is paused after two steps, moved from h1 to h4, and resumed.
+
+[1/2] h1: x86_64, CPU model Icelake-Server, runs on the real CPU (KVM)
+  do    start the program and run it until it asks to be paused, then save its state as a capsule
+  got   saved capsule 511d5f25: program memory 1152KiB, progress counter 2
+  next  copy the capsule from h1 to h4 (1.2M)
+  prog  connected to 10.0.2.2:8080, connection handle 100
+  prog  log in (creates a session on the server)             handle 100: the server replied 200 (token=f8d1af31 conn=1)
+  prog  open a transaction (tied to this connection)         handle 100: the server replied 200 (txn=2555 conn=1)
+  prog  session step                                         handle 100: the server replied 200 (n=1 conn=1)
+  prog  transaction step                                     handle 100: the server replied 200 (txn=2555 steps=1 conn=1)
+  prog  session step                                         handle 100: the server replied 200 (n=2 conn=1)
+  prog  transaction step                                     handle 100: the server replied 200 (txn=2555 steps=2 conn=1)
+  prog  the program holds token f8d1af31 in its memory and handle 100 in a variable
+  raw   tc: checkpoint host=h1 arch=x86_64 cpu="Intel Xeon Processor (Icelake)" counter=2 capsule=sha256:511d5f25ce04 module=sha256:daa39d5a5f69 memory=1152KiB
+
+[2/2] h4: x86_64, CPU model EPYC-Genoa, runs on the real CPU (KVM)
+  do    load the capsule that h1 saved, check its hashes, and continue the program from where it stopped
+  got   capsule 511d5f25 loaded and verified (written on h1, x86_64); progress counter 2 at that point
+  got   the program finished by itself, exit code 0
+  prog  --- the program was paused here, and carries on (possibly on another host) ---
+  prog  transaction step, on the old handle                  handle 100: FAILED, error number 9 (9 means this handle is not open)
+  prog  session step, on the old handle                      handle 100: FAILED, error number 9 (9 means this handle is not open)
+  prog  opened a new connection, handle 100
+  prog  session step, on the new connection, with the token  handle 100: the server replied 200 (n=3 conn=2)
+  prog  transaction step, on the new connection              handle 100: the server refused, code 409 (no transaction on connection 2)
+  prog  summary: the old connection handle no longer works; the token reaches the session; the transaction is gone
+  raw   tc: restored on h4 (x86_64, "AMD EPYC-Genoa Processor") from capsule=sha256:511d5f25ce04 written on h1 (x86_64) counter=2 module=sha256:daa39d5a5f69 verified
+  raw   tc: guest finished (exit 0)
+
+The test server's own log (build/net/server.log):
+  srv   connection 1 opened, from 127.0.0.1
+  srv   connection 1, /login: new session f8d1af31
+  srv   connection 1, /begin: transaction 2555 opened
+  srv   connection 1, /next: session f8d1af31 counter is now 1
+  srv   connection 1, /txn-step: transaction 2555 is at step 1
+  srv   connection 1, /next: session f8d1af31 counter is now 2
+  srv   connection 1, /txn-step: transaction 2555 is at step 2
+  srv   connection 1 closed: transaction 2555 rolled back after 2 steps
+  srv   connection 2 opened, from 127.0.0.1
+  srv   connection 2, /next: session f8d1af31 counter is now 3
+  srv   connection 2, /txn-step: refused, this connection has no transaction
+  srv   connection 2 closed
+
+RESULT  FINDING
+        connection:  LOST. After the move the old connection handle failed with error number 9, so the program had to open a new connection.
+        session:     KEPT. The program held its token in memory. It presented the token on the new connection, and the server returned the same session.
+        transaction: LOST. The server rolled the transaction back when the old connection closed, and the new connection has none.

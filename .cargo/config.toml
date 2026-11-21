@@ -1,0 +1,13 @@
+# Static musl builds of `tc` for the emulated hosts. Rust ships the musl CRT
+# and libc for these targets ("self-contained"), so rust-lld links them with
+# no cross toolchain. zig's clang is only the cross C compiler, for zstd-sys
+# (set as CC_<target> by the Makefile; see tools/zcc-*).
+[target.aarch64-unknown-linux-musl]
+linker = "rust-lld"
+rustflags = ["-C", "linker-flavor=ld.lld", "-C", "link-self-contained=yes"]
+
+# riscv64 links against glibc instead: wasmtime's trap handler needs register
+# constants (REG_PC, REG_SP...) that the libc crate defines for riscv64 glibc
+# but not for riscv64 musl. zig supplies the cross glibc to link against.
+[target.riscv64gc-unknown-linux-gnu]
+linker = "tools/zcc-riscv64-gnu"

@@ -1,0 +1,13 @@
+# Editor setup for guests/py-counter/_ckptmodule.c. It is built into CPython for
+# WASI by guests/py-counter/build.sh, so the editor needs that CPython tree's
+# headers (Python.h, and the pyconfig.h of the WASI build) and the wasi-sdk
+# sysroot. Both appear after `make python` (build/cpython, tools/wasi-sdk).
+# clangd resolves these relative paths from the source file's directory.
+If:
+  PathMatch: guests/py-counter/.*\.c
+CompileFlags:
+  Add:
+    - --target=wasm32-wasip1
+    - --sysroot=../../tools/wasi-sdk/share/wasi-sysroot
+    - -I../../build/cpython/Include
+    - -I../../build/cpython/cross-build/wasm32-wasip1

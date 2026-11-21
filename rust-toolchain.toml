@@ -1,0 +1,7 @@
+# The Rust release this repository is built and tested with. rustup reads this
+# file, so every `cargo` here uses it. wasmtime 50 itself needs 1.97 or newer.
+[toolchain]
+channel = "1.100.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]
+targets = ["wasm32-wasip1", "aarch64-unknown-linux-musl", "riscv64gc-unknown-linux-gnu"]

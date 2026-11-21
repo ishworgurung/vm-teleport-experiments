@@ -1,0 +1,16 @@
+
+[9/11] h1 to h4 (Denverton), CPU check switched off (--cpu-cap=none)
+  do    on h1 (x86_64, CPU model Icelake-Server, runs on the real CPU (KVM)), start the counter
+  got   the counter runs as process 2367. Its last line:
+  prog  criu-counter n=10 pid=2367
+  do    dump it: criu dump (no options)
+  got   the dump worked, and CRIU stopped the process
+  next  copy the dump image from h1 to h4 (132K)
+  do    on h4 (x86_64, CPU model Denverton, runs on the real CPU (KVM)), restore it: criu restore --cpu-cap=none, and watch for 2 seconds
+  got   the restore worked, but the process is not running. The counter log ends at n=11, and the kernel log says why:
+  prog  criu-counter n=9 pid=2367
+  prog  criu-counter n=10 pid=2367
+  prog  criu-counter n=11 pid=2367
+  raw   [   22.281139] traps: criu-counter[2367] trap invalid opcode ip:7fee0b2bac40 sp:7fff4b9cb1a8 error:0 in libc.so.6[164c40,7fee0b17e000+163000]
+
+  so    The restore worked, but the kernel killed the process at once: it ran an instruction that this CPU does not have (invalid opcode).

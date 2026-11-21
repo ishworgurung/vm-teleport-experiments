@@ -1,0 +1,57 @@
+# Lint everything and run the host's tests. The experiments themselves need
+# VMs with KVM, so they are not run here: their recorded output is in results/.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: rustfmt, clippy and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.100.0 # the same as rust-toolchain.toml
+          components: rustfmt, clippy
+          targets: wasm32-wasip1
+      - uses: Swatinem/rust-cache@v2
+      - name: Fetch binaryen (the guests need wasm-opt)
+        run: tools/fetch-tools.sh binaryen
+      - run: make lint-rust
+      - name: Build the guests and run the host's tests
+        run: make guests test
+
+  python:
+    name: ruff and pyright
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: make lint-py
+
+  shell:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make lint-sh
+
+  markdown:
+    name: markdownlint and Mermaid
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: make lint-md

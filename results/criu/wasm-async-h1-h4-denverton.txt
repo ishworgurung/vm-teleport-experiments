@@ -1,0 +1,30 @@
+
+[1/2] h1: x86_64, CPU model Icelake-Server, runs on the real CPU (KVM)
+  do    start the program and run it until it asks to be paused, then save its state as a capsule
+  got   saved capsule 8ec26567: program memory 1152KiB, progress counter 1000
+  next  copy the capsule from h1 to h4 (1.2M)
+  prog  i=250 sum_sq=5239625 history=[] t=0ms
+  prog  i=500 sum_sq=41791750 history=[] t=1ms
+  prog  i=750 sum_sq=140906375 history=[] t=1ms
+  prog  i=1000 sum_sq=333833500 history=[] t=1ms
+  raw   tc: checkpoint host=h1 arch=x86_64 cpu="Intel Xeon Processor (Icelake)" counter=1000 capsule=sha256:8ec265672627 module=sha256:cfa2985435f4 memory=1152KiB
+
+[2/2] h4: x86_64, CPU model Denverton, runs on the real CPU (KVM)
+  do    load the capsule that h1 saved, check its hashes, and continue the program from where it stopped
+  got   capsule 8ec26567 loaded and verified (written on h1, x86_64); progress counter 1000 at that point
+  got   the program finished by itself, exit code 0
+  prog  i=1250 sum_sq=651823125 history=[1000] t=3ms
+  prog  i=1500 sum_sq=1126125250 history=[1000] t=4ms
+  prog  i=1750 sum_sq=1787989875 history=[1000] t=4ms
+  prog  i=2000 sum_sq=2668667000 history=[1000] t=4ms
+  prog  i=2250 sum_sq=3799406625 history=[1000, 2000] t=4ms
+  prog  i=2500 sum_sq=5211458750 history=[1000, 2000] t=4ms
+  prog  i=2750 sum_sq=6936073375 history=[1000, 2000] t=4ms
+  prog  i=3000 sum_sq=9004500500 history=[1000, 2000] t=4ms
+  prog  i=3250 sum_sq=11447990125 history=[1000, 2000, 3000] t=4ms
+  prog  i=3500 sum_sq=14297792250 history=[1000, 2000, 3000] t=4ms
+  prog  i=3750 sum_sq=17585156875 history=[1000, 2000, 3000] t=4ms
+  prog  i=4000 sum_sq=21341334000 history=[1000, 2000, 3000] t=5ms
+  prog  done: i=4000 sum_sq=21341334000 (expected 21341334000) history=[1000, 2000, 3000]
+  raw   tc: restored on h4 (x86_64, "Intel Atom Processor (Denverton)") from capsule=sha256:8ec265672627 written on h1 (x86_64) counter=1000 module=sha256:cfa2985435f4 verified
+  raw   tc: guest finished (exit 0)

@@ -1,0 +1,16 @@
+
+[4/11] h1 to h4 (EPYC-Genoa), strict CPU check (--cpu-cap=all)
+  do    on h1 (x86_64, CPU model Icelake-Server, runs on the real CPU (KVM)), start the counter
+  got   the counter runs as process 2156. Its last line:
+  prog  criu-counter n=10 pid=2156
+  do    dump it: criu dump --cpu-cap=all
+  got   the dump worked, and CRIU stopped the process
+  next  copy the dump image from h1 to h4 (140K)
+  do    on h4 (x86_64, CPU model EPYC-Genoa, runs on the real CPU (KVM)), restore it: criu restore --cpu-cap=all, and watch for 2 seconds
+  got   the restore failed. CRIU's error lines, then the counter log that came with the dump image (it shows what was printed on h1 before the dump, not a new run):
+  raw   Error (criu/arch/x86/cpu.c:223): cpu: CPU instruction capabilities do not match run time
+  prog  criu-counter n=9 pid=2156
+  prog  criu-counter n=10 pid=2156
+  prog  criu-counter n=11 pid=2156
+
+  so    The restore failed: cpu: CPU instruction capabilities do not match run time. The process was not moved.

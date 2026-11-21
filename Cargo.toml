@@ -1,0 +1,48 @@
+# The host runtime, `tc`, is the only Rust crate that runs on this machine and on
+# the VMs. The guests under guests/ are separate Cargo projects: they build for
+# wasm32-wasip1, and each one has its own lock file.
+[workspace]
+resolver = "3"
+members = ["crates/tc"]
+# The guests build for wasm32-wasip1 and keep their own lock files, so they stay
+# out of this workspace even though they live under it.
+exclude = [
+  "guests/step-counter",
+  "guests/async-counter",
+  "guests/net-counter",
+  "guests/wasmer-spike",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.100"
+license = "MIT"
+repository = "https://github.com/ishworgurung/vm-teleport-experiments"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11"
+# Pinned exactly: a capsule records the wasmtime version, and precompiled
+# .cwasm files only load into the same version. A test checks that Cargo.lock
+# agrees with the version the capsule code records.
+wasmtime = { version = "=51.0.0", features = ["all-arch"] }
+wasmtime-wasi = "=51.0.0"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+undocumented_unsafe_blocks = "warn"
+allow_attributes_without_reason = "warn"
+dbg_macro = "warn"
+todo = "warn"
+unwrap_used = "warn"
+
+[profile.release]
+strip = true

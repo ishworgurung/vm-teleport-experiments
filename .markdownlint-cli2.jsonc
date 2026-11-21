@@ -1,0 +1,13 @@
+{
+  // Rules switched off on purpose:
+  //  MD013: prose is written one paragraph to a line, so lines are long by design.
+  //  MD033: the README uses inline HTML where Markdown cannot express the layout.
+  //  MD060: tables are written compact, with `| --- |` separator rows.
+  "config": {
+    "default": true,
+    "MD013": false,
+    "MD033": false,
+    "MD060": false
+  },
+  "ignores": ["**/node_modules/**", "target/**", "build/**", "tools/wasmtime/**", "tools/binaryen/**", "tools/wasi-sdk/**", "tools/wasmer/**", "vms/shared/**"]
+}

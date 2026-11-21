@@ -1,0 +1,19 @@
+[package]
+name = "tc"
+description = "Pause a running WebAssembly guest into a capsule, and resume it on a host with another CPU"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+wasmtime.workspace = true
+wasmtime-wasi.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,40 @@
+EXPERIMENT  Move a counter that is paused between function calls
+QUESTION    Does the counter keep counting when its program moves to a host with another CPU type?
+HOW         Each host runs the same WebAssembly program. Each host runs it for 1000 steps, saves its state as a capsule (a directory of files), and the capsule is copied to the next host.
+
+[1/4] h1: x86_64, CPU model Icelake-Server, runs on the real CPU (KVM)
+  do    start the program and run it until it asks to be paused, then save its state as a capsule
+  got   saved capsule f9bbc08c: program memory 1088KiB, progress counter 1000
+  next  copy the capsule from h1 to h2 (1.1M)
+  raw   tc: checkpoint host=h1 arch=x86_64 cpu="Intel Xeon Processor (Icelake)" counter=1000 capsule=sha256:f9bbc08c564c module=sha256:7e1089aecc74 memory=1088KiB
+
+[2/4] h2: aarch64, CPU model neoverse-n1, emulated in software (QEMU TCG)
+  do    load the capsule that h1 saved, check its hashes, and continue the program from where it stopped
+  got   capsule f9bbc08c loaded and verified (written on h1, x86_64); progress counter 1000 at that point
+  got   paused again, saved capsule 41880577, progress counter 2000
+  next  copy the capsule from h2 to h3 (1.1M)
+  raw   tc: restored on h2 (aarch64, "Arm Neoverse-N1 (implementer 0x41, part 0xd0c)") from capsule=sha256:f9bbc08c564c written on h1 (x86_64) counter=1000 module=sha256:7e1089aecc74 verified
+  raw   tc: checkpoint host=h2 arch=aarch64 cpu="Arm Neoverse-N1 (implementer 0x41, part 0xd0c)" counter=2000 capsule=sha256:418805774446 module=sha256:7e1089aecc74 memory=1088KiB
+
+[3/4] h3: riscv64, CPU model rv64, emulated in software (QEMU TCG)
+  do    load the capsule that h2 saved, check its hashes, and continue the program from where it stopped
+  got   capsule 41880577 loaded and verified (written on h2, aarch64); progress counter 2000 at that point
+  got   paused again, saved capsule efde0673, progress counter 3000
+  next  copy the capsule from h3 to h4 (1.1M)
+  raw   tc: restored on h3 (riscv64, "rv64imafdch (no uarch)") from capsule=sha256:418805774446 written on h2 (aarch64) counter=2000 module=sha256:7e1089aecc74 verified
+  raw   tc: checkpoint host=h3 arch=riscv64 cpu="rv64imafdch (no uarch)" counter=3000 capsule=sha256:efde0673ebf4 module=sha256:7e1089aecc74 memory=1088KiB
+
+[4/4] h4: x86_64, CPU model EPYC-Genoa, runs on the real CPU (KVM)
+  do    load the capsule that h3 saved, check its hashes, and continue the program from where it stopped
+  got   capsule efde0673 loaded and verified (written on h3, riscv64); progress counter 3000 at that point
+  got   ran to the end, progress counter 4000
+  raw   tc: restored on h4 (x86_64, "AMD EPYC-Genoa Processor") from capsule=sha256:efde0673ebf4 written on h3 (riscv64) counter=3000 module=sha256:7e1089aecc74 verified
+  raw   tc: ran to counter=4000, done
+
+CHECK   Does this transcript show what the README says it shows?
+  ok    the hosts ran in this order: h1 (x86_64), h2 (aarch64), h3 (riscv64), h4 (x86_64)
+  ok    each host loaded exactly the capsule that the previous host saved
+  ok    every host ran the same program (module 7e1089ae)
+  ok    the counter went 1000, 2000, 3000, 4000: each host started where the previous one stopped
+
+RESULT  PASS

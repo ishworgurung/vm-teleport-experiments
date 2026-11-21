@@ -1,0 +1,109 @@
+EXPERIMENT  Keep an open network connection across hosts with a floating IP
+QUESTION    Can CRIU move a client from h1 to h4 and keep its TCP connection, if the client's address moves with it?
+HOW         h1, h4 and h5 share a private network link. The client's address is a floating IP (an address that an operator can move from one host to another). h5 runs the server. After the dump, the floating IP moves from h1 to h4, and h4 announces it (a gratuitous ARP: a message that tells every machine on the link which network card now owns the address).
+
+[1/3] mode move: the floating IP moves with the client, and h4 announces it
+  do    start the test server on h5, on the private link (192.168.50.5)
+  do    give h1 the floating IP 192.168.50.100
+  raw   enp0s4 UP 192.168.50.1/24 192.168.50.100/24 fe80::5054:ff:fe50:1/64 
+  do    start the client on h1, bound to 192.168.50.100; it logs in, opens a transaction and takes 2 steps
+  prog  started (process 899): logged in, token 18a15362, opened transaction 3d50 on connection 1
+  prog  step 1: session counter 1, transaction step 1 (connection 1)
+  prog  step 2: session counter 2, transaction step 2 (connection 1)
+  raw   h5: 192.168.50.100 is at 52:54:00:50:00:01 REACHABLE 
+  got   before the move, h5 sends frames for 192.168.50.100 to the network card of h1
+  do    dump the client on h1: criu dump --tcp-established
+  got   the dump worked, and CRIU stopped the client
+  next  copy the dump image from h1 to h4
+  do    move the floating IP: h1 gives it up, h4 takes it
+  do    h4 announces the floating IP to everyone on the link
+  raw   garp: 192.168.50.100 is at 52:54:00:50:00:04 (sent on enp0s4)
+  raw   h5: 192.168.50.100 is at 52:54:00:50:00:04 STALE 
+  got   after the move, h5 sends frames for 192.168.50.100 to the network card of h4
+  do    restore the client on h4: criu restore --tcp-established, then watch it for 10 seconds
+  got   the restore worked, the client is running again on h4 as process 899. What it printed after the dump:
+  prog  step 3: session counter 3, transaction step 3 (connection 1)
+  prog  step 4: session counter 4, transaction step 4 (connection 1)
+  prog  step 5: session counter 5, transaction step 5 (connection 1)
+  got   the test server recorded this during the case (a closing line at the end comes from this script stopping the client afterwards):
+  srv   connection 1 opened, from 192.168.50.100
+  srv   connection 1, /login: new session 18a15362
+  srv   connection 1, /begin: transaction 3d50 opened
+  srv   connection 1, /next: session 18a15362 counter is now 1
+  srv   connection 1, /txn-step: transaction 3d50 is at step 1
+  srv   connection 1, /next: session 18a15362 counter is now 2
+  srv   connection 1, /txn-step: transaction 3d50 is at step 2
+  srv   connection 1, /next: session 18a15362 counter is now 3
+  srv   connection 1, /txn-step: transaction 3d50 is at step 3
+  srv   connection 1, /next: session 18a15362 counter is now 4
+  srv   connection 1, /txn-step: transaction 3d50 is at step 4
+  srv   connection 1, /next: session 18a15362 counter is now 5
+  srv   connection 1, /txn-step: transaction 3d50 is at step 5
+  srv   connection 1 closed: transaction 3d50 rolled back after 5 steps
+
+  so    connection:  KEPT. The client carried on with the same connection and the same TLS session.
+  so    transaction: KEPT. Its steps carried on without a gap.
+
+[2/3] mode nomove: control: the client uses h1's own address, so nothing moves with it
+  do    start the test server on h5, on the private link (192.168.50.5)
+  do    start the client on h1, bound to 192.168.50.1; it logs in, opens a transaction and takes 2 steps
+  prog  started (process 1111): logged in, token eb5ef874, opened transaction 3d03 on connection 1
+  prog  step 1: session counter 1, transaction step 1 (connection 1)
+  prog  step 2: session counter 2, transaction step 2 (connection 1)
+  do    dump the client on h1: criu dump --tcp-established
+  got   the dump worked, and CRIU stopped the client
+  next  copy the dump image from h1 to h4
+  do    restore the client on h4: criu restore --tcp-established, then watch it for 10 seconds
+  got   the restore failed. CRIU's error lines:
+  raw     1111: Error (soccr/soccr.c:499): Can't bind inet socket back: Cannot assign requested address
+  raw     1111: Error (criu/files.c:1221): Unable to open fd=3 id=0xf
+  raw   Error (criu/cr-restore.c:2320): Restoring FAILED.
+  raw   Error (criu/cr-restore.c:1262): 1111 killed by signal 9: Killed
+  got   the test server recorded this during the case (a closing line at the end comes from this script stopping the client afterwards):
+  srv   connection 1 opened, from 192.168.50.1
+  srv   connection 1, /login: new session eb5ef874
+  srv   connection 1, /begin: transaction 3d03 opened
+  srv   connection 1, /next: session eb5ef874 counter is now 1
+  srv   connection 1, /txn-step: transaction 3d03 is at step 1
+  srv   connection 1, /next: session eb5ef874 counter is now 2
+  srv   connection 1, /txn-step: transaction 3d03 is at step 2
+
+  so    The restore failed: Can't bind inet socket back: Cannot assign requested address. The client was not moved.
+
+[3/3] mode nogarp: control: the floating IP moves, but h4 does not announce it
+  do    start the test server on h5, on the private link (192.168.50.5)
+  do    give h1 the floating IP 192.168.50.100
+  raw   enp0s4 UP 192.168.50.1/24 192.168.50.100/24 fe80::5054:ff:fe50:1/64 
+  do    start the client on h1, bound to 192.168.50.100; it logs in, opens a transaction and takes 2 steps
+  prog  started (process 1307): logged in, token 58020437, opened transaction c2e1 on connection 1
+  prog  step 1: session counter 1, transaction step 1 (connection 1)
+  prog  step 2: session counter 2, transaction step 2 (connection 1)
+  raw   h5: 192.168.50.100 is at 52:54:00:50:00:01 REACHABLE 
+  got   before the move, h5 sends frames for 192.168.50.100 to the network card of h1
+  do    dump the client on h1: criu dump --tcp-established
+  got   the dump worked, and CRIU stopped the client
+  next  copy the dump image from h1 to h4
+  do    move the floating IP: h1 gives it up, h4 takes it
+  got   h4 does not announce the floating IP
+  raw   h5: 192.168.50.100 is at 52:54:00:50:00:01 REACHABLE 
+  got   after the move, h5 sends frames for 192.168.50.100 to the network card of h1
+  do    restore the client on h4: criu restore --tcp-established, then watch it for 10 seconds
+  got   the restore worked, the client is running again on h4 as process 1307. What it printed after the dump:
+  prog  step 3: the old connection failed: TimeoutError: The read operation timed out
+  got   the test server recorded this during the case (a closing line at the end comes from this script stopping the client afterwards):
+  srv   connection 1 opened, from 192.168.50.100
+  srv   connection 1, /login: new session 58020437
+  srv   connection 1, /begin: transaction c2e1 opened
+  srv   connection 1, /next: session 58020437 counter is now 1
+  srv   connection 1, /txn-step: transaction c2e1 is at step 1
+  srv   connection 1, /next: session 58020437 counter is now 2
+  srv   connection 1, /txn-step: transaction c2e1 is at step 2
+  srv   connection 1, /next: session 58020437 counter is now 3
+
+  so    connection:  LOST. The first request on the old connection failed with TimeoutError.
+  so    session:     NOT RECOVERED. No new connection was opened within 10 seconds.
+
+RESULT  DONE (3 cases run)
+        1. move:   connection KEPT, transaction KEPT
+        2. nomove: The restore failed: Can't bind inet socket back: Cannot assign requested address
+        3. nogarp: connection LOST, session NOT RECOVERED

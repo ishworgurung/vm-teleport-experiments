@@ -1,0 +1,58 @@
+EXPERIMENT  Move a loop that is paused in the middle of its run
+QUESTION    Does the loop carry on from the exact point where it was paused, with its variables intact, on a host with another CPU type?
+HOW         The program calls checkpoint() every 250 iterations. A paused program is saved as a capsule, copied to the next host, and loaded there.
+
+[1/4] h1: x86_64, CPU model Icelake-Server, runs on the real CPU (KVM)
+  do    start the program and run it until it asks to be paused, then save its state as a capsule
+  got   saved capsule 8c8f1563: program memory 1152KiB, progress counter 1000
+  next  copy the capsule from h1 to h2 (1.2M)
+  prog  i=250 sum_sq=5239625 history=[] t=0ms
+  prog  i=500 sum_sq=41791750 history=[] t=1ms
+  prog  i=750 sum_sq=140906375 history=[] t=1ms
+  prog  i=1000 sum_sq=333833500 history=[] t=1ms
+  raw   tc: checkpoint host=h1 arch=x86_64 cpu="Intel Xeon Processor (Icelake)" counter=1000 capsule=sha256:8c8f1563bac2 module=sha256:cfa2985435f4 memory=1152KiB
+
+[2/4] h2: aarch64, CPU model neoverse-n1, emulated in software (QEMU TCG)
+  do    load the capsule that h1 saved, check its hashes, and continue the program from where it stopped
+  got   capsule 8c8f1563 loaded and verified (written on h1, x86_64); progress counter 1000 at that point
+  got   paused again, saved capsule 59eb47ed, progress counter 2000
+  next  copy the capsule from h2 to h3 (1.2M)
+  prog  i=1250 sum_sq=651823125 history=[1000] t=56ms
+  prog  i=1500 sum_sq=1126125250 history=[1000] t=79ms
+  prog  i=1750 sum_sq=1787989875 history=[1000] t=80ms
+  prog  i=2000 sum_sq=2668667000 history=[1000] t=80ms
+  raw   tc: restored on h2 (aarch64, "Arm Neoverse-N1 (implementer 0x41, part 0xd0c)") from capsule=sha256:8c8f1563bac2 written on h1 (x86_64) counter=1000 module=sha256:cfa2985435f4 verified
+  raw   tc: checkpoint host=h2 arch=aarch64 cpu="Arm Neoverse-N1 (implementer 0x41, part 0xd0c)" counter=2000 capsule=sha256:59eb47edcf36 module=sha256:cfa2985435f4 memory=1152KiB
+
+[3/4] h3: riscv64, CPU model rv64, emulated in software (QEMU TCG)
+  do    load the capsule that h2 saved, check its hashes, and continue the program from where it stopped
+  got   capsule 59eb47ed loaded and verified (written on h2, aarch64); progress counter 2000 at that point
+  got   paused again, saved capsule 061590f8, progress counter 3000
+  next  copy the capsule from h3 to h4 (1.2M)
+  prog  i=2250 sum_sq=3799406625 history=[1000, 2000] t=135ms
+  prog  i=2500 sum_sq=5211458750 history=[1000, 2000] t=158ms
+  prog  i=2750 sum_sq=6936073375 history=[1000, 2000] t=158ms
+  prog  i=3000 sum_sq=9004500500 history=[1000, 2000] t=158ms
+  raw   tc: restored on h3 (riscv64, "rv64imafdch (no uarch)") from capsule=sha256:59eb47edcf36 written on h2 (aarch64) counter=2000 module=sha256:cfa2985435f4 verified
+  raw   tc: checkpoint host=h3 arch=riscv64 cpu="rv64imafdch (no uarch)" counter=3000 capsule=sha256:061590f80b9e module=sha256:cfa2985435f4 memory=1152KiB
+
+[4/4] h4: x86_64, CPU model EPYC-Genoa, runs on the real CPU (KVM)
+  do    load the capsule that h3 saved, check its hashes, and continue the program from where it stopped
+  got   capsule 061590f8 loaded and verified (written on h3, riscv64); progress counter 3000 at that point
+  got   the program finished by itself, exit code 0
+  prog  i=3250 sum_sq=11447990125 history=[1000, 2000, 3000] t=161ms
+  prog  i=3500 sum_sq=14297792250 history=[1000, 2000, 3000] t=162ms
+  prog  i=3750 sum_sq=17585156875 history=[1000, 2000, 3000] t=162ms
+  prog  i=4000 sum_sq=21341334000 history=[1000, 2000, 3000] t=162ms
+  prog  done: i=4000 sum_sq=21341334000 (expected 21341334000) history=[1000, 2000, 3000]
+  raw   tc: restored on h4 (x86_64, "AMD EPYC-Genoa Processor") from capsule=sha256:061590f80b9e written on h3 (riscv64) counter=3000 module=sha256:cfa2985435f4 verified
+  raw   tc: guest finished (exit 0)
+
+CHECK   Does this transcript show what the README says it shows?
+  ok    the hosts ran in this order: h1 (x86_64), h2 (aarch64), h3 (riscv64), h4 (x86_64)
+  ok    each host loaded exactly the capsule that the previous host saved
+  ok    every host ran the same program (module cfa29854)
+  ok    the loop printed i = 250, 500, ... 4000 in order, 1000 iterations on each host, and the running sum and the history were correct each time
+  ok    the program finished by itself on h4 (exit 0), with sum_sq 21341334000
+
+RESULT  PASS

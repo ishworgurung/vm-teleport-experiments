@@ -1,0 +1,38 @@
+# Everything below is generated. `make clean` removes exactly these paths, so
+# after it the working tree holds only source files.
+
+# Rust: the host runtime, and the guests' own target directories
+/target/
+/guests/*/target/
+
+# Built modules, native guests, precompiled .cwasm files, the test server's
+# certificate, key, pid and log
+/build/
+
+# Tools that `make tools` downloads (the scripts in tools/ are source)
+/tools/wasmtime/
+/tools/binaryen/
+/tools/wasi-sdk/
+/tools/wasmer/
+/tools/node_modules/
+/tools/package-lock.json
+
+# VM state: downloaded Debian images, per-VM disks and logs, and the share
+# each VM mounts at /mnt/shared (capsules, binaries, CRIU images)
+/vms/images/
+/vms/run/
+/vms/shared/
+
+# Transcripts being written; a run renames them once it has passed its check
+/results/*.part
+/results/criu/*.part
+
+# Tool caches
+__pycache__/
+*.pyc
+.ruff_cache/
+.pyright/
+.mypy_cache/
+
+# clangd's index of the C sources
+/.cache/

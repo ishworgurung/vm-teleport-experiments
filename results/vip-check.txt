@@ -1,0 +1,25 @@
+EXPERIMENT  Check the private link and the tools that the floating-IP runs need
+QUESTION    Can h1, h4 and h5 reach each other on their private link, and is arping in the VM image?
+HOW         arping is the usual tool for announcing an address on a link. This repository sends the announcement with scripts/net/garp.py instead.
+
+[1/2] the private link
+  do    show each VM's address on the link
+  raw   h1: enp0s4 UP 192.168.50.1/24 fe80::5054:ff:fe50:1/64 
+  raw   h4: enp0s4 UP 192.168.50.4/24 fe80::5054:ff:fe50:4/64 
+  raw   h5: enp0s4 UP 192.168.50.5/24 fe80::5054:ff:fe50:5/64 
+  do    ping h4 and h5 from h1, 2 packets each
+  raw   2 packets transmitted, 2 received, 0% packet loss, time 1030ms
+  raw   rtt min/avg/max/mdev = 0.202/0.215/0.229/0.013 ms
+  raw   2 packets transmitted, 2 received, 0% packet loss, time 1014ms
+  raw   rtt min/avg/max/mdev = 0.254/0.259/0.264/0.005 ms
+
+[2/2] the tools in the VM image
+  do    look for arping, as root so that /usr/sbin is searched
+  got   arping is absent
+  do    look up a host name from inside the VM
+  got   the name lookup works
+
+RESULT  PASS
+        link:    all three VMs have an address on the link, and h1 reaches h4 and h5 with no packet loss
+        arping:  absent in the image
+        lookup:  the name lookup works, so the image could probably install arping; the experiments do not need it

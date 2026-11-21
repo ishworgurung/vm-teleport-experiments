@@ -1,0 +1,5 @@
+# `unwrap` and `expect` are how a test says "this must work". Everywhere else
+# the `unwrap_used` lint (see Cargo.toml) forbids them.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true

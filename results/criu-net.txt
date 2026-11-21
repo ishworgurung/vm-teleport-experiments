@@ -1,0 +1,182 @@
+EXPERIMENT  Move a program that has an open HTTPS connection, with CRIU
+QUESTION    Can CRIU keep the connection, the transaction and the login session when it moves a client to the same host or to another host?
+HOW         A Python client logs in to a test server, opens a transaction on its connection and takes steps. CRIU dumps it, then restores it, under each of its TCP options. 'Same ISA' means both hosts are x86-64.
+
+[1/6] same host, no TCP option, server on this machine
+  do    start the client on h1; it logs in to the test server on this machine, opens a transaction and takes 2 steps
+  prog  started (process 1391): logged in, token e7878d25, opened transaction e259 on connection 1
+  prog  step 1: session counter 1, transaction step 1 (connection 1)
+  prog  step 2: session counter 2, transaction step 2 (connection 1)
+  do    dump the client: criu dump with no TCP option
+  got   the dump failed, so CRIU left the client running. CRIU's error lines, then the client's last line:
+  raw   Error (criu/sk-inet.c:191): inet: Connected TCP socket, consider using --tcp-established option.
+  raw   Error (criu/cr-dump.c:1681): Dump files (pid: 1391) failed with -1
+  raw   Error (criu/cr-dump.c:2111): Dumping FAILED.
+  prog  step 2: session counter 2, transaction step 2 (connection 1)
+  got   the test server recorded this during the case (a closing line at the end comes from this script stopping the client afterwards):
+  srv   connection 1 opened, from 127.0.0.1
+  srv   connection 1, /login: new session e7878d25
+  srv   connection 1, /begin: transaction e259 opened
+  srv   connection 1, /next: session e7878d25 counter is now 1
+  srv   ... 2 more step lines on connection 1
+  srv   connection 1, /txn-step: transaction e259 is at step 2
+
+  so    CRIU refused to dump a client with an open connection. Nothing was moved.
+
+[2/6] same host, --tcp-close, server on this machine
+  do    start the client on h1; it logs in to the test server on this machine, opens a transaction and takes 2 steps
+  prog  started (process 1522): logged in, token 34c49df3, opened transaction c921 on connection 2
+  prog  step 1: session counter 1, transaction step 1 (connection 2)
+  prog  step 2: session counter 2, transaction step 2 (connection 2)
+  do    dump the client: criu dump --tcp-close
+  got   the dump worked, and CRIU stopped the client
+  do    restore the client on h1: criu restore --tcp-close, then watch it for 10 seconds
+  got   the restore worked, the client is running again as process 1522. What it printed after the dump:
+  prog  step 3: the old connection failed: BrokenPipeError: [Errno 32] Broken pipe
+  prog  step 3: opened a new connection (connection 3) and presented the token: session counter 3
+  prog  step 3: transaction on the new connection: refused (409: no transaction on connection 3)
+  prog  step 4: session counter 4 (connection 3)
+  prog  step 5: session counter 5 (connection 3)
+  got   the test server recorded this during the case (a closing line at the end comes from this script stopping the client afterwards):
+  srv   connection 2 opened, from 127.0.0.1
+  srv   connection 2, /login: new session 34c49df3
+  srv   connection 2, /begin: transaction c921 opened
+  srv   connection 2, /next: session 34c49df3 counter is now 1
+  srv   ... 2 more step lines on connection 2
+  srv   connection 2, /txn-step: transaction c921 is at step 2
+  srv   connection 2 closed: transaction c921 rolled back after 2 steps
+  srv   connection 3 opened, from 127.0.0.1
+  srv   connection 3, /next: session 34c49df3 counter is now 3
+  srv   ... 2 more step lines on connection 3
+  srv   connection 3, /next: session 34c49df3 counter is now 5
+  srv   connection 3 closed
+
+  so    connection:  LOST. The first request on the old connection failed with BrokenPipeError.
+  so    session:     KEPT. The client logged in again with its token and the server returned the same session.
+  so    transaction: LOST. The transaction was tied to the old connection.
+
+[3/6] same host, --tcp-established, server on this machine
+  do    start the client on h1; it logs in to the test server on this machine, opens a transaction and takes 2 steps
+  prog  started (process 1664): logged in, token a7410a18, opened transaction c194 on connection 4
+  prog  step 1: session counter 1, transaction step 1 (connection 4)
+  prog  step 2: session counter 2, transaction step 2 (connection 4)
+  do    dump the client: criu dump --tcp-established
+  got   the dump worked, and CRIU stopped the client
+  do    restore the client on h1: criu restore --tcp-established, then watch it for 10 seconds
+  got   the restore worked, the client is running again as process 1664. What it printed after the dump:
+  prog  step 3: the old connection failed: TimeoutError: The read operation timed out
+  prog  step 3: opened a new connection (connection 5) and presented the token: session counter 4
+  prog  step 3: transaction on the new connection: refused (409: no transaction on connection 5)
+  got   the test server recorded this during the case (a closing line at the end comes from this script stopping the client afterwards):
+  srv   connection 4 opened, from 127.0.0.1
+  srv   connection 4, /login: new session a7410a18
+  srv   connection 4, /begin: transaction c194 opened
+  srv   connection 4, /next: session a7410a18 counter is now 1
+  srv   ... 4 more step lines on connection 4
+  srv   connection 4, /txn-step: transaction c194 is at step 3
+  srv   connection 4 closed: transaction c194 rolled back after 3 steps
+  srv   connection 5 opened, from 127.0.0.1
+  srv   connection 5, /next: session a7410a18 counter is now 4
+  srv   connection 5, /txn-step: refused, this connection has no transaction
+  srv   connection 5 closed
+
+  so    connection:  LOST. The first request on the old connection failed with TimeoutError.
+  so    session:     KEPT. The client logged in again with its token and the server returned the same session.
+  so    transaction: LOST. The transaction was tied to the old connection.
+
+[4/6] same host, --tcp-established, server inside the VM
+  do    start the test server inside h1, then the client on h1; the client logs in, opens a transaction and takes 2 steps
+  prog  started (process 1849): logged in, token 0f09194f, opened transaction e7a9 on connection 1
+  prog  step 1: session counter 1, transaction step 1 (connection 1)
+  prog  step 2: session counter 2, transaction step 2 (connection 1)
+  do    dump the client: criu dump --tcp-established
+  got   the dump worked, and CRIU stopped the client
+  do    restore the client on h1: criu restore --tcp-established, then watch it for 10 seconds
+  got   the restore worked, the client is running again as process 1849. What it printed after the dump:
+  prog  step 3: session counter 3, transaction step 3 (connection 1)
+  prog  step 4: session counter 4, transaction step 4 (connection 1)
+  prog  step 5: session counter 5, transaction step 5 (connection 1)
+  got   the test server recorded this during the case (a closing line at the end comes from this script stopping the client afterwards):
+  srv   connection 1 opened, from 127.0.0.1
+  srv   connection 1, /login: new session 0f09194f
+  srv   connection 1, /begin: transaction e7a9 opened
+  srv   connection 1, /next: session 0f09194f counter is now 1
+  srv   ... 8 more step lines on connection 1
+  srv   connection 1, /txn-step: transaction e7a9 is at step 5
+  srv   connection 1 closed: transaction e7a9 rolled back after 5 steps
+
+  so    connection:  KEPT. The client carried on with the same connection and the same TLS session.
+  so    transaction: KEPT. Its steps carried on without a gap.
+
+[5/6] other host (h1 to h4), --tcp-established, server on this machine
+  do    start the client on h1; it logs in to the test server on this machine, opens a transaction and takes 2 steps
+  prog  started (process 2012): logged in, token 45f821f1, opened transaction b263 on connection 6
+  prog  step 1: session counter 1, transaction step 1 (connection 6)
+  prog  step 2: session counter 2, transaction step 2 (connection 6)
+  do    dump the client: criu dump --tcp-established
+  got   the dump worked, and CRIU stopped the client
+  next  copy the dump image from h1 to h4
+  do    restore the client on h4: criu restore --tcp-established, then watch it for 10 seconds
+  got   the restore worked, the client is running again as process 2012. What it printed after the dump:
+  prog  step 3: the old connection failed: ConnectionResetError: [Errno 104] Connection reset by peer
+  prog  step 3: opened a new connection (connection 7) and presented the token: session counter 3
+  prog  step 3: transaction on the new connection: refused (409: no transaction on connection 7)
+  prog  step 4: session counter 4 (connection 7)
+  prog  step 5: session counter 5 (connection 7)
+  got   the test server recorded this during the case (a closing line at the end comes from this script stopping the client afterwards):
+  srv   connection 6 opened, from 127.0.0.1
+  srv   connection 6, /login: new session 45f821f1
+  srv   connection 6, /begin: transaction b263 opened
+  srv   connection 6, /next: session 45f821f1 counter is now 1
+  srv   ... 2 more step lines on connection 6
+  srv   connection 6, /txn-step: transaction b263 is at step 2
+  srv   connection 7 opened, from 127.0.0.1
+  srv   connection 7, /next: session 45f821f1 counter is now 3
+  srv   ... 2 more step lines on connection 7
+  srv   connection 7, /next: session 45f821f1 counter is now 5
+  srv   connection 7 closed
+
+  so    connection:  LOST. The first request on the old connection failed with ConnectionResetError.
+  so    session:     KEPT. The client logged in again with its token and the server returned the same session.
+  so    transaction: LOST. The transaction was tied to the old connection.
+
+[6/6] other host (h1 to h4), --tcp-close, server on this machine
+  do    start the client on h1; it logs in to the test server on this machine, opens a transaction and takes 2 steps
+  prog  started (process 2121): logged in, token 46277b55, opened transaction 19e3 on connection 8
+  prog  step 1: session counter 1, transaction step 1 (connection 8)
+  prog  step 2: session counter 2, transaction step 2 (connection 8)
+  do    dump the client: criu dump --tcp-close
+  got   the dump worked, and CRIU stopped the client
+  next  copy the dump image from h1 to h4
+  do    restore the client on h4: criu restore --tcp-close, then watch it for 10 seconds
+  got   the restore worked, the client is running again as process 2121. What it printed after the dump:
+  prog  step 3: the old connection failed: BrokenPipeError: [Errno 32] Broken pipe
+  prog  step 3: opened a new connection (connection 9) and presented the token: session counter 3
+  prog  step 3: transaction on the new connection: refused (409: no transaction on connection 9)
+  prog  step 4: session counter 4 (connection 9)
+  prog  step 5: session counter 5 (connection 9)
+  got   the test server recorded this during the case (a closing line at the end comes from this script stopping the client afterwards):
+  srv   connection 8 opened, from 127.0.0.1
+  srv   connection 8, /login: new session 46277b55
+  srv   connection 8, /begin: transaction 19e3 opened
+  srv   connection 8, /next: session 46277b55 counter is now 1
+  srv   ... 2 more step lines on connection 8
+  srv   connection 8, /txn-step: transaction 19e3 is at step 2
+  srv   connection 8 closed: transaction 19e3 rolled back after 2 steps
+  srv   connection 9 opened, from 127.0.0.1
+  srv   connection 9, /next: session 46277b55 counter is now 3
+  srv   ... 2 more step lines on connection 9
+  srv   connection 9, /next: session 46277b55 counter is now 5
+  srv   connection 9 closed
+
+  so    connection:  LOST. The first request on the old connection failed with BrokenPipeError.
+  so    session:     KEPT. The client logged in again with its token and the server returned the same session.
+  so    transaction: LOST. The transaction was tied to the old connection.
+
+RESULT  DONE (6 cases run)
+        1. same host, no TCP option, server on this machine: CRIU refused to dump a client with an open connection
+        2. same host, --tcp-close, server on this machine: connection LOST, session KEPT, transaction LOST
+        3. same host, --tcp-established, server on this machine: connection LOST, session KEPT, transaction LOST
+        4. same host, --tcp-established, server inside the VM: connection KEPT, transaction KEPT
+        5. other host (h1 to h4), --tcp-established, server on this machine: connection LOST, session KEPT, transaction LOST
+        6. other host (h1 to h4), --tcp-close, server on this machine: connection LOST, session KEPT, transaction LOST

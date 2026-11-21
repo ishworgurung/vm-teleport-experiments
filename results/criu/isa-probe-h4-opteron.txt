@@ -1,0 +1,7 @@
+
+[5/11] h4: what its CPU allows. x86_64, CPU model Opteron_G4, runs on the real CPU (KVM)
+  do    run isa-probe on h4: it reads the CPU's feature bits, then runs one AVX and one AVX2 instruction (vector instructions that glibc uses when they exist)
+  prog  CPUID: AVX=1 AVX2=0 OSXSAVE=1
+  prog  XCR0 = 0x7 (bit 2, YMM state: enabled)
+  prog    AVX:  vxorps ymm0, ymm0, ymm0      -> ran
+  prog    AVX2: vpaddd ymm0, ymm0, ymm0      -> ran

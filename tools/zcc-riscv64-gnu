@@ -1,0 +1,6 @@
+#!/bin/sh
+# zig cc as cross C compiler and linker for riscv64 glibc 2.41 (Debian 13).
+# Drop the --target=<rust triple> that rustc and the cc crate add (zig cannot
+# parse it) and the -nodefaultlibs rustc passes (zig must add libc itself).
+for x; do shift; case $x in --target=*|-nodefaultlibs) ;; *) set -- "$@" "$x" ;; esac; done
+exec zig cc -target riscv64-linux-gnu.2.41 "$@"
