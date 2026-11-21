@@ -1,5 +1,5 @@
-# Lint everything and run the host's tests. The experiments themselves need
-# VMs with KVM, so they are not run here: their recorded output is in results/.
+# Lint and build everything, and run the host's tests. The experiments need
+# VMs, so they are not run here: their recorded output is in results/.
 name: ci
 
 on:
@@ -33,6 +33,21 @@ jobs:
       - run: make lint-rust
       - name: Build the guests and run the host's tests
         run: make guests test
+
+  build:
+    name: build tc for three ISAs, the guests and CPython
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.100.0 # the same as rust-toolchain.toml
+          targets: wasm32-wasip1,aarch64-unknown-linux-musl,riscv64gc-unknown-linux-gnu
+      - uses: Swatinem/rust-cache@v2
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - run: make host guests python
 
   python:
     name: ruff and pyright
