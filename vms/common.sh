@@ -46,6 +46,11 @@ make_seed() {
         echo '    shell: /bin/bash'
         echo '    ssh_authorized_keys:'
         echo "      - $(cat "$RUN/id_teleport.pub")"
+        # Some networks (and the self-hosted CI runner) block plain HTTP. Debian's
+        # cloud image points apt at http://, so switch it to https before
+        # cloud-init installs the packages. bootcmd runs on every boot, early.
+        echo 'bootcmd:'
+        echo '  - [sh, -c, "sed -i s,http://,https://,g /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true"]'
         if [[ -n ${PACKAGES:-} ]]; then
             echo 'package_update: true'
             echo 'packages:'
