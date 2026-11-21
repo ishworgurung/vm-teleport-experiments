@@ -87,8 +87,12 @@ jobs:
           fi
       - name: make doctor
         run: make doctor
-      - name: Stop any VMs left by an earlier run
-        run: make down
+      # Fresh VM disks and shares every run: a disk keeps the user (and uid) that
+      # cloud-init made on its first boot. The Debian images are kept.
+      - name: Stop any VMs left by an earlier run, and start from fresh VM disks
+        run: |
+          make down
+          rm -rf vms/run vms/shared
 
       # Each target builds and boots what it needs first (see the Makefile).
       - name: Tests, and a run on this machine (no VMs)

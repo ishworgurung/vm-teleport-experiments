@@ -42,6 +42,10 @@ make_seed() {
         echo "hostname: $NAME"
         echo 'users:'
         echo '  - name: teleport'
+        # Same uid as the host user: the 9p share shows host file owners, so the
+        # guest can only write to it if the uids match (the host user is not
+        # always 1000, for example the CI runner's).
+        echo "    uid: $(id -u)"
         echo '    sudo: ALL=(ALL) NOPASSWD:ALL'
         echo '    shell: /bin/bash'
         echo '    ssh_authorized_keys:'
