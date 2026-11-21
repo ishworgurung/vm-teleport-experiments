@@ -18,7 +18,9 @@ runs:
       shell: bash
       run: |
         sudo apt-get update -q
-        sudo apt-get install -y -q --no-install-recommends \
+        # Ubuntu 26.04 split RISC-V out of qemu-system-misc into its own package.
+        riscv=; apt-cache show qemu-system-riscv64 > /dev/null 2>&1 && riscv=qemu-system-riscv64
+        sudo apt-get install -y -q --no-install-recommends $riscv \
           qemu-system-x86 qemu-system-arm qemu-system-misc qemu-utils \
           qemu-efi-aarch64 qemu-efi-riscv64 \
           genisoimage rsync openssl xz-utils openssh-client curl git make python3
