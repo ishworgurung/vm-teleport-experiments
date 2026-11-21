@@ -1,4 +1,7 @@
-# vm-teleport-experiments
+# 🛸 vm-teleport-experiments
+
+[![ci](https://github.com/ishworgurung/vm-teleport-experiments/actions/workflows/ci.yml/badge.svg)](https://github.com/ishworgurung/vm-teleport-experiments/actions/workflows/ci.yml)
+[![experiments](https://github.com/ishworgurung/vm-teleport-experiments/actions/workflows/experiments.yml/badge.svg)](https://github.com/ishworgurung/vm-teleport-experiments/actions/workflows/experiments.yml)
 
 Pause a running program on one kind of CPU, and resume it on another.
 
@@ -24,34 +27,34 @@ flowchart LR
 
 The code never moves. Only the capsule does (blue = a step, green = the result).
 
-## What it shows
+## 🔬 What it shows
 
 | # | What moves | Result |
 | --- | --- | --- |
-| 1 | A counter, paused between calls | Survives h1 → h2 → h3 → h4, on four CPU models of three ISAs (instruction set architectures) |
-| 2 | A loop, paused in the middle of a call | Survives. The call stack travels too, through Binaryen's Asyncify pass |
-| 3 | A whole Python interpreter, paused mid-script | Survives. The interpreter does not restart |
-| 4 | A native process, with CRIU | Fails across ISAs. Between two x86-64 CPUs it works only if the CPU has every instruction that the C library chose at start-up |
-| 5 | A program with an open network connection | The connection does not move. A login session survives if the program held a token. A transaction tied to the connection is lost |
-| 6 | The same client, with a floating IP | CRIU keeps the connection across hosts when the address moves with the process, the move is announced, and the network path carries it |
+| 1 | A counter, paused between calls | ✅ Survives h1 → h2 → h3 → h4, on four CPU models of three ISAs (instruction set architectures) |
+| 2 | A loop, paused in the middle of a call | ✅ Survives. The call stack travels too, through Binaryen's Asyncify pass |
+| 3 | A whole Python interpreter, paused mid-script | ✅ Survives. The interpreter does not restart |
+| 4 | A native process, with CRIU | ❌ Fails across ISAs. Between two x86-64 CPUs it works only if the CPU has every instruction that the C library chose at start-up |
+| 5 | A program with an open network connection | ⚠️ The connection does not move. A login session survives if the program held a token. A transaction tied to the connection is lost |
+| 6 | The same client, with a floating IP | ✅ CRIU keeps the connection across hosts when the address moves with the process, the move is announced, and the network path carries it |
 
 The write-up with the evidence for each row is [docs/results.md](docs/results.md).
 
-## Requirements
+## 📋 Requirements
 
 An x86-64 Linux machine. The experiments boot QEMU virtual machines, so `/dev/kvm` should be usable (without it, set `H1_ACCEL=tcg H4_ACCEL=tcg H5_ACCEL=tcg`, and expect it to be much slower). Plan for about 9 GB of free memory (four VMs of 2 GB, and a 0.5 GB helper) and about 10 GB of disk space once everything is downloaded and built (9.6 GB in the verification run).
 
 | You need | Used for |
 | --- | --- |
 | `qemu-system-x86_64`, `qemu-system-aarch64`, `qemu-system-riscv64`, `qemu-img` | The four VMs (and a fifth, h5, for the last experiment) |
-| UEFI firmware for Arm and RISC-V (the `edk2` packages) | Booting those two VMs. See [Configuration](#configuration) if yours is in another place |
+| UEFI firmware for Arm and RISC-V (the `edk2` packages) | Booting those two VMs. See [Configuration](#-configuration) if yours is in another place |
 | `genisoimage`, `ssh`, `curl`, `git`, `rsync`, `openssl`, `tar`, `xz`, `make`, `python3` | Building the VM seeds, talking to the VMs, downloading |
 | Rust 1.100.0 (`rust-toolchain.toml` makes rustup install it), with the targets `wasm32-wasip1`, `aarch64-unknown-linux-musl` and `riscv64gc-unknown-linux-gnu` | Building `tc` for each ISA, and the Wasm guests |
 | `zig` | The cross C compiler for the Arm and RISC-V builds |
 
 `make tools` downloads pinned copies of wasmtime, Binaryen, wasi-sdk and Wasmer into `tools/`, and `make images` downloads the Debian 13 cloud images. Run `make doctor` to check the machine before you start.
 
-## Quick start
+## ⚡ Quick start
 
 ```sh
 make doctor               # check this machine
@@ -62,7 +65,7 @@ Every experiment target lists what it needs (the pinned tools, the Debian images
 
 `make help` lists every target. Nothing needs root on your machine: the VMs run as you, and CRIU runs as root inside them.
 
-### How long it takes
+### ⏱️ How long it takes
 
 From a clean checkout, on one machine with a fast connection (your times will differ):
 
@@ -76,7 +79,7 @@ From a clean checkout, on one machine with a fast connection (your times will di
 | experiments 5 and 6 | 85 s, 17 s, 25 s, 4 s and 55 s |
 | `make mutate` | 79 s |
 
-## The experiments, in order
+## 🧭 The experiments, in order
 
 Each target first runs what it needs (the `Needs` column), so any of them runs alone from a clean checkout. Run them in this order to follow the story. Each one writes its transcript to `results/`, replacing the recorded one, and prints a `RESULT` at the end.
 
@@ -99,7 +102,7 @@ Each target first runs what it needs (the `Needs` column), so any of them runs a
 
 The transcripts in `results/` are the output that these targets produced when the repository was last verified. Your hash values and timings will differ. Your outcomes should not.
 
-## Reading the output
+## 📖 Reading the output
 
 Every experiment prints in the same layout, so you can follow it from the `do` and `got` lines and skip the rest:
 
@@ -121,7 +124,7 @@ RESULT  PASS, FAIL, DONE or FINDING
 
 `do` says what is about to happen, before the slow part runs. `got` says what happened, in plain words, written by the script from the tool's own output. If a line that a `got` needs is missing, the script stops and shows the full output. `RESULT` says PASS or FAIL only where a script checked something. An experiment that measures behaviour ends with FINDING or DONE, and one line for each case. The layout is defined in [scripts/lib/say.sh](scripts/lib/say.sh).
 
-## Repository layout
+## 🗂️ Repository layout
 
 ```text
 Makefile                  every target; `make help` lists them
@@ -147,7 +150,7 @@ docs/                     design notes, capsule format, and the long write-up
 results/                  the recorded output of each experiment
 ```
 
-## Configuration
+## 🔧 Configuration
 
 | Variable | Default | What it does |
 | --- | --- | --- |
@@ -159,7 +162,7 @@ results/                  the recorded output of each experiment
 | `QEMU_IMG` | `qemu-img` | The `qemu-img` to use |
 | `PYTHON` | `python3` | The Python that runs the checkers |
 
-## Development
+## 🛠️ Development
 
 ```sh
 make lint     # rustfmt and clippy (host and guests), ruff and pyright, shellcheck, markdownlint and Mermaid
@@ -170,11 +173,11 @@ make fmt      # format the Rust and Python code
 
 The linters run with strict settings: clippy with the pedantic group, ruff with every rule, pyright in strict mode. [.github/workflows/ci.yml](.github/workflows/ci.yml) runs them, and the tests, on every push. The experiments themselves need VMs, so CI does not run them.
 
-## Cleaning up
+## 🧹 Cleaning up
 
 `make clean` stops the VMs and removes everything that was generated: build output, the downloaded tools and images, the VM disks and shared directories, the test server's certificate, and the tool caches. After it, the working tree holds only source files. The recorded transcripts in `results/` are source, so they stay. Because it removes the images, the next `make up` downloads them again.
 
-## What it does not cover
+## 🚧 What it does not cover
 
 - **Real hardware.** The Arm and RISC-V hosts are emulated, and the "AMD" host is an AMD CPU model on whatever CPU you have.
 - **Pausing at any moment.** A guest pauses only where it calls `ckpt.checkpoint()`.
@@ -184,12 +187,12 @@ The linters run with strict settings: clippy with the pedantic group, ruff with 
 
 [docs/results.md](docs/results.md) has the full list, with the reasons.
 
-## Further reading
+## 📚 Further reading
 
 - [docs/results.md](docs/results.md): each experiment explained, with its output
 - [docs/design.md](docs/design.md): the setup, what each experiment is expected to show, and related projects
 - [docs/capsule-format.md](docs/capsule-format.md): what is in a capsule, and what is not
 
-## License
+## 📄 License
 
 [MIT](LICENSE).
