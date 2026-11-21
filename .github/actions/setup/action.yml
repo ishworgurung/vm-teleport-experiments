@@ -18,8 +18,8 @@ runs:
       shell: bash
       run: |
         sudo apt-get update -q
-        # Ubuntu 26.04 split RISC-V out of qemu-system-misc into its own package.
-        riscv=; apt-cache show qemu-system-riscv64 > /dev/null 2>&1 && riscv=qemu-system-riscv64
+        # Ubuntu 26.04 split RISC-V out of qemu-system-misc into its own package, qemu-system-riscv.
+        riscv=; apt-cache show qemu-system-riscv > /dev/null 2>&1 && riscv=qemu-system-riscv
         sudo apt-get install -y -q --no-install-recommends $riscv \
           qemu-system-x86 qemu-system-arm qemu-system-misc qemu-utils \
           qemu-efi-aarch64 qemu-efi-riscv64 \
