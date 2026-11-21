@@ -1,0 +1,111 @@
+# Run every experiment on the self-hosted runner, and compare each outcome
+# (the lines after RESULT) with the transcript recorded in results/.
+#
+# The experiments boot QEMU VMs (h1, h4 and h5 on KVM, h2 and h3 emulated), so
+# they need this machine, not a GitHub-hosted runner. One job, so that the
+# VMs' fixed ports are never used twice. The workspace persists between runs
+# (checkout does not clean it), so the downloaded tools and Debian images and
+# the Rust build cache stay in place.
+#
+# One-time setup on the runner (the runner user has no sudo):
+#   sudo apt-get install -y qemu-system-x86 qemu-system-arm qemu-system-misc qemu-utils \
+#     qemu-efi-aarch64 qemu-efi-riscv64 genisoimage rsync openssl openssh-client xz-utils
+#   (Ubuntu 26.04 also needs qemu-system-riscv), and the runner user in the kvm group.
+name: experiments
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1" # weekly, Monday 03:17 UTC
+  push:
+    branches: [main]
+    paths:
+      - crates/**
+      - guests/**
+      - scripts/**
+      - tools/**
+      - vms/**
+      - Makefile
+      - Cargo.*
+      - .cargo/**
+      - .github/workflows/experiments.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: experiments
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  # Where Ubuntu's qemu-efi-* packages put the firmware (the defaults are Arch's).
+  ARM_FW_CODE: /usr/share/AAVMF/AAVMF_CODE.fd
+  ARM_FW_VARS: /usr/share/AAVMF/AAVMF_VARS.fd
+  RISCV_FW_CODE: /usr/share/qemu-efi-riscv64/RISCV_VIRT_CODE.fd
+  RISCV_FW_VARS: /usr/share/qemu-efi-riscv64/RISCV_VIRT_VARS.fd
+
+jobs:
+  experiments:
+    name: every experiment, on four hosts
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.100.0 # the same as rust-toolchain.toml
+          targets: wasm32-wasip1,aarch64-unknown-linux-musl,riscv64gc-unknown-linux-gnu
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Use KVM, or fall back to emulating h1, h4 and h5
+        run: |
+          if [[ -r /dev/kvm && -w /dev/kvm ]]; then echo "KVM is usable"; else
+            echo "::warning::this user cannot use /dev/kvm: h1, h4 and h5 fall back to TCG (much slower)"
+            printf '%s\n' H1_ACCEL=tcg H4_ACCEL=tcg H5_ACCEL=tcg >> "$GITHUB_ENV"
+          fi
+      - name: make doctor
+        run: make doctor
+      - name: Stop any VMs left by an earlier run
+        run: make down
+
+      # Each target builds and boots what it needs first (see the Makefile).
+      - name: Tests, and a run on this machine (no VMs)
+        run: make test run
+      - name: Experiments 0 to 3
+        run: make hosts demo-step demo-async demo-py
+      - name: Experiment 3b, the cross-check
+        run: make crosscheck
+      - name: Experiment 5a, network state of a Wasm program
+        run: make demo-net
+      - name: Experiment 4, CRIU across CPUs (reboots h4 three times)
+        run: make criu
+      - name: Experiments 5b and 5c, CRIU with an open connection
+        run: make criu-net criu-net-probe
+      - name: Experiments 6a and 6b, floating IP (reboots h1 and h4 with a private link, boots h5)
+        run: make vip-check criu-vip
+
+      - name: Compare the outcomes with the recorded ones
+        if: ${{ !cancelled() }}
+        run: |
+          scripts/compare-results.sh results/hosts.txt results/demo-step.txt results/demo-async.txt \
+            results/demo-py.txt results/crosscheck.txt results/demo-net.txt results/criu/*.txt \
+            results/criu-net.txt results/criu-net-probe.txt results/vip-check.txt \
+            results/criu-vip.txt | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Keep the transcripts and VM logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: results
+          path: |
+            results/
+            vms/run/*.log
+            build/net/server.log
+          if-no-files-found: warn
+      - name: Power the VMs off
+        if: ${{ always() }}
+        run: make down
